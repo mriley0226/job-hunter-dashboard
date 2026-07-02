@@ -205,3 +205,5 @@ The dashboard uses a shared demo Adzuna key which has rate limits. For heavy per
 **`vercel dev` not working locally:**
 - Run `npm install` first
 - Make sure `.env.local` exists with your API key
+
+
