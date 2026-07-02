@@ -16,6 +16,41 @@ function detectCountry(location) {
   return 'us'; // default (also matches 5-digit US zip)
 }
 
+// Geo filtering — Arbeitnow/Remotive have no location param, so jobs from
+// other countries can slip through even when a home location is set.
+const US_STATES = ['Alabama','Alaska','Arizona','Arkansas','California','Colorado','Connecticut',
+  'Delaware','Florida','Georgia','Hawaii','Idaho','Illinois','Indiana','Iowa','Kansas','Kentucky',
+  'Louisiana','Maine','Maryland','Massachusetts','Michigan','Minnesota','Mississippi','Missouri',
+  'Montana','Nebraska','Nevada','New Hampshire','New Jersey','New Mexico','New York',
+  'North Carolina','North Dakota','Ohio','Oklahoma','Oregon','Pennsylvania','Rhode Island',
+  'South Carolina','South Dakota','Tennessee','Texas','Utah','Vermont','Virginia','Washington',
+  'West Virginia','Wisconsin','Wyoming'].map(s => s.toLowerCase());
+const NON_US_COUNTRIES = ['brazil','india','argentina','philippines','nigeria','pakistan',
+  'indonesia','mexico','poland','ukraine','romania','vietnam','bangladesh','egypt','kenya',
+  'south africa','colombia','peru','morocco','turkey','russia','spain','portugal','italy',
+  'germany','france','netherlands','belgium','sweden','norway','denmark','finland','austria',
+  'switzerland','ireland','greece','czech republic','hungary','bulgaria','china','japan',
+  'south korea','singapore','malaysia','thailand','taiwan','hong kong','australia',
+  'new zealand','canada','chile','venezuela','ecuador','israel','united arab emirates',
+  'saudi arabia','sri lanka','nepal','kazakhstan','ethiopia','ghana',
+  'united kingdom','england','scotland','northern ireland'];
+const NON_GB_COUNTRIES = NON_US_COUNTRIES.filter(c =>
+  !['ireland','united kingdom','england','scotland','northern ireland'].includes(c));
+
+function isInRegion(job, country) {
+  const loc = (job.location || '').toLowerCase();
+  if (!loc) return true;
+  if (country === 'gb') {
+    if (/united kingdom|\buk\b|england|scotland|\bwales\b|northern ireland/.test(loc)) return true;
+    if (NON_GB_COUNTRIES.some(c => loc.includes(c))) return false;
+    return true;
+  }
+  if (/united states|\busa\b|\bu\.s\.a?\.?\b/.test(loc)) return true;
+  if (US_STATES.some(s => loc.includes(s))) return true;
+  if (NON_US_COUNTRIES.some(c => loc.includes(c))) return false;
+  return true;
+}
+
 async function fetchAdzuna(kw, location) {
   const query  = location?.query;
   const radius = location?.radius;
@@ -228,11 +263,16 @@ export default async function handler(req, res) {
     fetchRemotive(primaryTerm)
   ]);
 
-  const allJobs = [
+  let allJobs = [
     ...(adzuna.status     === 'fulfilled' ? adzuna.value     : []),
     ...(arbeitnow.status  === 'fulfilled' ? arbeitnow.value  : []),
     ...(remotive.status   === 'fulfilled' ? remotive.value   : [])
   ];
+
+  if (location?.query) {
+    const country = detectCountry(location.query);
+    allJobs = allJobs.filter(j => j._source === 'Adzuna' || isInRegion(j, country));
+  }
 
   // Load already-seen job IDs so we don't re-alert on the same postings
   let seenIds = new Set();

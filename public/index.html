@@ -1049,6 +1049,51 @@
   function freshWidth(h)  { return h<1?100: h<6?90: h<24?70: h<48?45: h<72?25: h<168?10:3; }
   function freshLabel(h)  { return h<1?'Just posted': h<24?h+'h ago': Math.round(h/24)+'d ago'; }
 
+  // ─────────────────────────────────────────────────────────
+  //  Geo filtering (Arbeitnow/Muse/Remotive have no location
+  //  param — this catches jobs from other countries slipping
+  //  through when the user has entered a home location)
+  // ─────────────────────────────────────────────────────────
+  const US_STATES = ['Alabama','Alaska','Arizona','Arkansas','California','Colorado','Connecticut',
+    'Delaware','Florida','Georgia','Hawaii','Idaho','Illinois','Indiana','Iowa','Kansas','Kentucky',
+    'Louisiana','Maine','Maryland','Massachusetts','Michigan','Minnesota','Mississippi','Missouri',
+    'Montana','Nebraska','Nevada','New Hampshire','New Jersey','New Mexico','New York',
+    'North Carolina','North Dakota','Ohio','Oklahoma','Oregon','Pennsylvania','Rhode Island',
+    'South Carolina','South Dakota','Tennessee','Texas','Utah','Vermont','Virginia','Washington',
+    'West Virginia','Wisconsin','Wyoming'].map(s => s.toLowerCase());
+
+  // Non-exhaustive, but covers the countries that actually show up on
+  // Remotive/Arbeitnow/Muse listings often enough to matter.
+  const NON_US_COUNTRIES = ['brazil','india','argentina','philippines','nigeria','pakistan',
+    'indonesia','mexico','poland','ukraine','romania','vietnam','bangladesh','egypt','kenya',
+    'south africa','colombia','peru','morocco','turkey','russia','spain','portugal','italy',
+    'germany','france','netherlands','belgium','sweden','norway','denmark','finland','austria',
+    'switzerland','ireland','greece','czech republic','hungary','bulgaria','china','japan',
+    'south korea','singapore','malaysia','thailand','taiwan','hong kong','australia',
+    'new zealand','canada','chile','venezuela','ecuador','israel','united arab emirates',
+    'saudi arabia','sri lanka','nepal','kazakhstan','ethiopia','ghana',
+    'united kingdom','england','scotland','northern ireland'];
+  const NON_GB_COUNTRIES = NON_US_COUNTRIES.filter(c =>
+    !['ireland','united kingdom','england','scotland','northern ireland'].includes(c));
+
+  function jobLocationText(job) {
+    return ((job.location?.display_name || job.candidate_required_location || job.location || '') + '').toLowerCase();
+  }
+
+  function isInRegion(job, country) {
+    const loc = jobLocationText(job);
+    if (!loc) return true; // no location info — don't over-filter, benefit of the doubt
+    if (country === 'gb') {
+      if (/united kingdom|\buk\b|england|scotland|\bwales\b|northern ireland/.test(loc)) return true;
+      if (NON_GB_COUNTRIES.some(c => loc.includes(c))) return false;
+      return true; // ambiguous ("Remote", "Worldwide", "Anywhere") — benefit of the doubt
+    }
+    if (/united states|\busa\b|\bu\.s\.a?\.?\b/.test(loc)) return true;
+    if (US_STATES.some(s => loc.includes(s))) return true;
+    if (NON_US_COUNTRIES.some(c => loc.includes(c))) return false; // explicit foreign country named
+    return true; // ambiguous ("Remote", "Worldwide", "Anywhere") — benefit of the doubt
+  }
+
   function detectRemote(job) {
     const t = ((job.title||'')+(job.description||'')+(job.location?.display_name||job.location||'')).toLowerCase();
     if (t.includes('remote')||t.includes('wfh')||job.remote===true) return 'remote';
@@ -1345,6 +1390,15 @@
 
     // Dedupe
     allJobs = jobs.filter((j,i,a) => a.findIndex(x => x.id === j.id) === i);
+
+    // Adzuna's where/distance already constrain its own results, but
+    // Arbeitnow/Muse/Remotive have no location param, so jobs from other
+    // countries can slip through — filter those out when the user has
+    // told us where they are.
+    if (location) {
+      const country = detectCountry(location);
+      allJobs = allJobs.filter(j => j._source === 'Adzuna' || isInRegion(j, country));
+    }
 
     // Default sort
     const mode = resumeProfile ? 'match' : 'fresh';
