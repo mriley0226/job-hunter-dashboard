@@ -10,13 +10,25 @@ export const config = { maxDuration: 30 };
 
 // ─── Job board fetchers (same logic as the frontend) ────────────────────────
 
-async function fetchAdzuna(kw) {
-  const r = await fetch(
-    `https://api.adzuna.com/v1/api/jobs/us/search/1` +
+function detectCountry(location) {
+  const loc = (location || '').trim();
+  if (/^[A-Za-z]{1,2}\d[A-Za-z\d]?\s*\d[A-Za-z]{2}$/.test(loc)) return 'gb'; // UK postcode
+  return 'us'; // default (also matches 5-digit US zip)
+}
+
+async function fetchAdzuna(kw, location) {
+  const query  = location?.query;
+  const radius = location?.radius;
+  const country = detectCountry(query);
+  let url = `https://api.adzuna.com/v1/api/jobs/${country}/search/1` +
     `?app_id=${process.env.ADZUNA_APP_ID || '5c90fad7'}` +
     `&app_key=${process.env.ADZUNA_APP_KEY || 'bfc851b76b38c88e73d7e52cb4eebbdc'}` +
-    `&what=${encodeURIComponent(kw)}&results_per_page=20&sort_by=date`
-  );
+    `&what=${encodeURIComponent(kw)}&results_per_page=20&sort_by=date`;
+  if (query && radius !== 'remote') {
+    url += `&where=${encodeURIComponent(query)}`;
+    if (radius && radius !== 'any') url += `&distance=${Math.round(Number(radius) * 1.60934)}`; // miles -> km
+  }
+  const r = await fetch(url);
   if (!r.ok) return [];
   const d = await r.json();
   return (d.results || []).map(j => ({
@@ -180,11 +192,12 @@ export default async function handler(req, res) {
     return res.status(200).json({ ok: true, skipped: 'email not configured' });
   }
 
-  // Load saved profile and keywords from KV store
-  let profile, keywords;
+  // Load saved profile, keywords, and location from KV store
+  let profile, keywords, location;
   try {
     profile  = await kv.get('resume_profile');
     keywords = await kv.get('search_keywords') || [];
+    location = await kv.get('search_location') || null;
   } catch(e) {
     console.error('KV read error:', e);
     return res.status(500).json({ error: 'Could not read profile from storage' });
@@ -210,7 +223,7 @@ export default async function handler(req, res) {
 
   // Fetch from all sources in parallel
   const [adzuna, arbeitnow, remotive] = await Promise.allSettled([
-    fetchAdzuna(primaryTerm),
+    fetchAdzuna(primaryTerm, location),
     fetchArbeitnow(primaryTerm),
     fetchRemotive(primaryTerm)
   ]);

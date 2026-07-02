@@ -581,10 +581,14 @@
         <button class="primary" id="search-btn" onclick="runSearch()">
           <i class="ti ti-search"></i>Search jobs
         </button>
-        <select id="loc-select">
-          <option value="remote">Remote / any</option>
-          <option value="us">United States</option>
-          <option value="uk">United Kingdom</option>
+        <input type="text" id="loc-input" placeholder="City, state or zip" style="width:150px" onchange="persistLocation()" />
+        <select id="radius-select" style="width:150px" onchange="persistLocation()">
+          <option value="remote">Remote only</option>
+          <option value="10">Within 10 mi</option>
+          <option value="25" selected>Within 25 mi</option>
+          <option value="50">Within 50 mi</option>
+          <option value="100">Within 100 mi</option>
+          <option value="any">Nationwide</option>
         </select>
       </div>
     </div>
@@ -762,6 +766,33 @@
 
   try { savedJobs = JSON.parse(localStorage.getItem('jh_saved') || '[]'); } catch(e) {}
 
+  try {
+    const savedLoc = JSON.parse(localStorage.getItem('jh_location') || 'null');
+    if (savedLoc) {
+      document.getElementById('loc-input').value = savedLoc.query || '';
+      document.getElementById('radius-select').value = savedLoc.radius || '25';
+    }
+  } catch(e) {}
+
+  function detectCountry(location) {
+    const loc = (location || '').trim();
+    if (/^[A-Za-z]{1,2}\d[A-Za-z\d]?\s*\d[A-Za-z]{2}$/.test(loc)) return 'gb'; // UK postcode
+    return 'us'; // default (also matches 5-digit US zip)
+  }
+
+  function persistLocation() {
+    const location = {
+      query:  document.getElementById('loc-input').value.trim(),
+      radius: document.getElementById('radius-select').value
+    };
+    try { localStorage.setItem('jh_location', JSON.stringify(location)); } catch(e) {}
+    fetch('/api/save-profile', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ location })
+    }).catch(() => {}); // best-effort — hourly cron will just use the last saved value
+  }
+
   // ─────────────────────────────────────────────────────────
   //  Tabs
   // ─────────────────────────────────────────────────────────
@@ -929,7 +960,7 @@
 
     document.getElementById('resume-panel').classList.add('loaded');
     showResumeState('parsed');
-    if (p.preferredRemote) document.getElementById('loc-select').value = 'remote';
+    if (p.preferredRemote) { document.getElementById('radius-select').value = 'remote'; persistLocation(); }
 
     // Save profile to server so the hourly cron can use it (fire-and-forget)
     saveProfileToServer(p, autoKeywords);
@@ -1225,13 +1256,16 @@
   // ─────────────────────────────────────────────────────────
   //  Job board APIs
   // ─────────────────────────────────────────────────────────
-  async function fetchAdzuna(kw, loc) {
-    const country = loc === 'uk' ? 'gb' : 'us';
-    const r = await fetch(
-      `https://api.adzuna.com/v1/api/jobs/${country}/search/1` +
+  async function fetchAdzuna(kw, location, radius) {
+    const country = detectCountry(location);
+    let url = `https://api.adzuna.com/v1/api/jobs/${country}/search/1` +
       `?app_id=5c90fad7&app_key=bfc851b76b38c88e73d7e52cb4eebbdc` +
-      `&what=${encodeURIComponent(kw)}&results_per_page=10&sort_by=date`
-    );
+      `&what=${encodeURIComponent(kw)}&results_per_page=10&sort_by=date`;
+    if (location && radius !== 'remote') {
+      url += `&where=${encodeURIComponent(location)}`;
+      if (radius !== 'any') url += `&distance=${Math.round(Number(radius) * 1.60934)}`; // miles -> km
+    }
+    const r = await fetch(url);
     if (!r.ok) throw new Error('Adzuna ' + r.status);
     const d = await r.json();
     return (d.results||[]).map(j => ({
@@ -1294,12 +1328,14 @@
     const useArbeit  = document.getElementById('src-arbeitnow').checked;
     const useMuse    = document.getElementById('src-muse').checked;
     const useRemot   = document.getElementById('src-remotive').checked;
-    const loc        = document.getElementById('loc-select').value;
+    const location   = document.getElementById('loc-input').value.trim();
+    const radius     = document.getElementById('radius-select').value;
     const primaryKw  = allKw[0];
+    persistLocation();
 
     const jobs = [], errors = [];
     const fetchers = [];
-    if (useAdzuna) fetchers.push(fetchAdzuna(primaryKw, loc).then(r=>jobs.push(...r)).catch(e=>errors.push('Adzuna: '+e.message)));
+    if (useAdzuna) fetchers.push(fetchAdzuna(primaryKw, location, radius).then(r=>jobs.push(...r)).catch(e=>errors.push('Adzuna: '+e.message)));
     if (useArbeit) fetchers.push(fetchArbeitnow(primaryKw).then(r=>jobs.push(...r)).catch(e=>errors.push('Arbeitnow: '+e.message)));
     if (useMuse)   fetchers.push(fetchMuse(primaryKw).then(r=>jobs.push(...r)).catch(e=>errors.push('The Muse: '+e.message)));
     if (useRemot)  fetchers.push(fetchRemotive(primaryKw).then(r=>jobs.push(...r)).catch(e=>errors.push('Remotive: '+e.message)));
