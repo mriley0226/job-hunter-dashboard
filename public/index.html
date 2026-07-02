@@ -1,0 +1,1363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Job Hunter Dashboard</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:         #0d1117;
+      --surface-1:  #161b22;
+      --surface-2:  #1c2128;
+      --surface-3:  #22272e;
+      --border:     rgba(255,255,255,0.08);
+      --border-md:  rgba(255,255,255,0.14);
+      --border-lg:  rgba(255,255,255,0.22);
+      --text-1:     #e6edf3;
+      --text-2:     #8b949e;
+      --text-3:     #484f58;
+      --accent:     #2f81f7;
+      --accent-bg:  rgba(47,129,247,0.12);
+      --accent-bdr: rgba(47,129,247,0.35);
+      --green:      #3fb950;
+      --green-bg:   rgba(63,185,80,0.10);
+      --green-bdr:  rgba(63,185,80,0.30);
+      --amber:      #d29922;
+      --amber-bg:   rgba(210,153,34,0.10);
+      --amber-bdr:  rgba(210,153,34,0.30);
+      --red:        #f85149;
+      --red-bg:     rgba(248,81,73,0.10);
+      --red-bdr:    rgba(248,81,73,0.30);
+      --radius:     8px;
+      --font:       -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      --mono:       'SF Mono', 'Cascadia Code', 'Fira Code', monospace;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text-1);
+      font-family: var(--font);
+      font-size: 14px;
+      line-height: 1.5;
+      min-height: 100vh;
+    }
+
+    .shell {
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 32px 20px 64px;
+    }
+
+    /* ── Header ── */
+    .header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      margin-bottom: 28px;
+      gap: 16px;
+    }
+    .header-title {
+      font-size: 20px;
+      font-weight: 600;
+      color: var(--text-1);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 4px;
+    }
+    .header-title i { color: var(--accent); font-size: 22px; }
+    .header-sub { font-size: 13px; color: var(--text-2); }
+    .status-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 0 3px var(--green-bg);
+      margin-top: 6px;
+      flex-shrink: 0;
+    }
+
+    /* ── Tabs ── */
+    .tabs {
+      display: flex;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 24px;
+      gap: 2px;
+    }
+    .tab {
+      font-size: 13px;
+      font-weight: 500;
+      padding: 8px 14px;
+      background: none;
+      border: none;
+      border-bottom: 2px solid transparent;
+      cursor: pointer;
+      color: var(--text-2);
+      margin-bottom: -1px;
+      transition: color .15s;
+      font-family: var(--font);
+    }
+    .tab:hover { color: var(--text-1); }
+    .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+    .tab i { font-size: 14px; margin-right: 5px; vertical-align: -1px; }
+
+    /* ── Cards / panels ── */
+    .card {
+      background: var(--surface-1);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px 18px;
+    }
+    .card + .card { margin-top: 10px; }
+
+    /* ── Resume panel ── */
+    .resume-panel {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px 18px;
+      margin-bottom: 20px;
+      background: var(--surface-1);
+      transition: border-color .2s;
+    }
+    .resume-panel.loaded { border-color: var(--green-bdr); background: rgba(63,185,80,0.04); }
+
+    .drop-zone {
+      border: 1.5px dashed var(--border-md);
+      border-radius: var(--radius);
+      padding: 32px 20px;
+      text-align: center;
+      cursor: pointer;
+      transition: all .15s;
+      position: relative;
+    }
+    .drop-zone:hover, .drop-zone.drag {
+      border-color: var(--accent);
+      background: var(--accent-bg);
+    }
+    .drop-zone input {
+      position: absolute; inset: 0; opacity: 0;
+      cursor: pointer; width: 100%; height: 100%;
+    }
+    .drop-icon { font-size: 36px; color: var(--text-3); display: block; margin-bottom: 10px; }
+    .drop-text { font-size: 15px; font-weight: 500; color: var(--text-1); margin-bottom: 5px; }
+    .drop-sub { font-size: 12px; color: var(--text-2); }
+
+    .parsing-state { text-align: center; padding: 24px; }
+    .parsing-state i {
+      font-size: 28px; color: var(--accent);
+      display: block; margin-bottom: 10px;
+      animation: spin 1s linear infinite;
+    }
+    .parsing-state p { font-size: 13px; color: var(--text-2); }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .resume-loaded-header {
+      display: flex; align-items: center;
+      justify-content: space-between; gap: 12px;
+      margin-bottom: 14px;
+    }
+    .resume-name { font-size: 15px; font-weight: 600; color: var(--green); }
+    .resume-name i { margin-right: 5px; }
+    .resume-sub { font-size: 12px; color: var(--text-2); margin-top: 2px; }
+    .mini-profile {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+    }
+    .mini-section {
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 10px 12px;
+    }
+    .mini-label {
+      font-size: 10px; font-weight: 600;
+      color: var(--text-3); text-transform: uppercase;
+      letter-spacing: .6px; margin-bottom: 7px;
+    }
+
+    /* ── Chip system ── */
+    .chips { display: flex; flex-wrap: wrap; gap: 5px; }
+    .chip {
+      display: inline-flex; align-items: center; gap: 4px;
+      font-size: 11px; font-weight: 500;
+      padding: 3px 9px 3px 10px;
+      border-radius: 20px; border: 1px solid;
+      white-space: nowrap;
+    }
+    .chip.manual { background: var(--accent-bg); color: var(--accent); border-color: var(--accent-bdr); }
+    .chip.auto   { background: var(--green-bg);  color: var(--green);  border-color: var(--green-bdr); }
+    .chip.title  { background: var(--accent-bg); color: var(--accent); border-color: var(--accent-bdr); }
+    .chip.skill  { background: var(--surface-3); color: var(--text-2); border-color: var(--border-md); }
+    .chip.method { background: var(--amber-bg);  color: var(--amber);  border-color: var(--amber-bdr); }
+    .chip.tool   { background: var(--surface-3); color: var(--text-2); border-color: var(--border-md); }
+    .chip.industry { background: var(--amber-bg); color: var(--amber); border-color: var(--amber-bdr); }
+    .chip-remove {
+      background: none; border: none; cursor: pointer;
+      color: inherit; padding: 0; font-size: 14px;
+      line-height: 1; opacity: .6;
+    }
+    .chip-remove:hover { opacity: 1; }
+    .auto-badge {
+      display: inline-flex; align-items: center; gap: 3px;
+      font-size: 10px; font-weight: 600;
+      background: var(--green-bg); color: var(--green);
+      border: 1px solid var(--green-bdr);
+      padding: 1px 7px; border-radius: 20px;
+      vertical-align: middle; margin-left: 6px;
+    }
+
+    /* ── Controls row ── */
+    .controls {
+      display: grid;
+      grid-template-columns: 1fr 140px auto;
+      gap: 14px;
+      align-items: start;
+      margin-bottom: 20px;
+    }
+    .ctrl-label {
+      font-size: 11px; font-weight: 600;
+      color: var(--text-3); text-transform: uppercase;
+      letter-spacing: .5px; margin-bottom: 8px;
+    }
+    .kw-area { display: flex; flex-direction: column; gap: 8px; }
+    .kw-add { display: flex; gap: 6px; }
+    .kw-hint { font-size: 11px; color: var(--text-3); }
+
+    .sources { display: flex; flex-direction: column; gap: 6px; }
+    .source-toggle {
+      display: flex; align-items: center; gap: 7px;
+      font-size: 12px; color: var(--text-2); cursor: pointer;
+    }
+    .source-toggle input { cursor: pointer; accent-color: var(--accent); }
+    .source-dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: var(--green); flex-shrink: 0;
+    }
+
+    .actions { display: flex; flex-direction: column; gap: 7px; align-items: flex-end; }
+
+    /* ── Form elements ── */
+    input[type="text"], select {
+      background: var(--surface-2);
+      border: 1px solid var(--border-md);
+      border-radius: var(--radius);
+      color: var(--text-1);
+      font-family: var(--font);
+      font-size: 13px;
+      padding: 7px 10px;
+      outline: none;
+      transition: border-color .15s;
+      width: 100%;
+    }
+    input[type="text"]:focus, select:focus { border-color: var(--accent); }
+    input[type="text"]::placeholder { color: var(--text-3); }
+    select { cursor: pointer; }
+    select option { background: var(--surface-2); }
+
+    button {
+      background: var(--surface-2);
+      border: 1px solid var(--border-md);
+      border-radius: var(--radius);
+      color: var(--text-1);
+      font-family: var(--font);
+      font-size: 13px;
+      font-weight: 500;
+      padding: 7px 14px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      transition: all .15s;
+      white-space: nowrap;
+    }
+    button:hover { border-color: var(--border-lg); background: var(--surface-3); }
+    button:active { opacity: .8; }
+    button:disabled { opacity: .4; cursor: not-allowed; }
+    button.primary {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+    }
+    button.primary:hover { opacity: .9; }
+    button.sm { font-size: 12px; padding: 4px 9px; }
+    button.danger-sm { font-size: 12px; padding: 4px 9px; color: var(--red); border-color: var(--red-bdr); }
+    button.danger-sm:hover { background: var(--red-bg); }
+    button.saved { color: var(--green); border-color: var(--green-bdr); }
+
+    /* ── Stats row ── */
+    .stats {
+      display: grid; grid-template-columns: repeat(4,1fr);
+      gap: 10px; margin-bottom: 20px;
+    }
+    .stat {
+      background: var(--surface-1);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px 14px;
+    }
+    .stat-val {
+      font-size: 24px; font-weight: 600;
+      font-family: var(--mono); color: var(--text-1);
+      margin-bottom: 2px;
+    }
+    .stat-val.a { color: var(--accent); }
+    .stat-val.g { color: var(--green); }
+    .stat-val.y { color: var(--amber); }
+    .stat-lbl { font-size: 11px; color: var(--text-2); }
+
+    /* ── Sort bar ── */
+    .sort-bar {
+      display: flex; align-items: center; gap: 10px;
+      margin-bottom: 14px;
+    }
+    .sort-bar .lbl { font-size: 12px; color: var(--text-2); flex-shrink: 0; }
+    .sort-bar select { width: auto; font-size: 12px; padding: 4px 8px; }
+    .result-count { margin-left: auto; font-size: 12px; color: var(--text-3); }
+
+    /* ── Job card ── */
+    .job-card {
+      background: var(--surface-1);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 15px 17px;
+      margin-bottom: 10px;
+      transition: border-color .15s;
+    }
+    .job-card:hover { border-color: var(--border-md); }
+    .job-card.high-match { border-color: var(--green-bdr); }
+
+    .jc-top {
+      display: flex; justify-content: space-between;
+      align-items: flex-start; gap: 12px; margin-bottom: 8px;
+    }
+    .jc-title {
+      font-size: 15px; font-weight: 600; color: var(--text-1);
+      text-decoration: none; margin-bottom: 3px; display: block;
+    }
+    .jc-title:hover { color: var(--accent); }
+    .jc-company { font-size: 12px; color: var(--text-2); }
+    .jc-company i { font-size: 12px; margin-right: 4px; vertical-align: -1px; }
+
+    .jc-badges { display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 8px; }
+    .badge {
+      font-size: 10px; font-weight: 600;
+      padding: 2px 8px; border-radius: 20px;
+      border: 1px solid;
+    }
+    .badge.source { background: var(--surface-3); color: var(--text-2); border-color: var(--border); }
+    .badge.remote { background: var(--green-bg); color: var(--green); border-color: var(--green-bdr); }
+    .badge.hybrid { background: var(--amber-bg); color: var(--amber); border-color: var(--amber-bdr); }
+    .badge.onsite { background: var(--surface-3); color: var(--text-3); border-color: var(--border); }
+    .badge.kw     { background: var(--accent-bg); color: var(--accent); border-color: var(--accent-bdr); }
+
+    .jc-meta {
+      display: flex; gap: 14px; flex-wrap: wrap;
+      font-size: 12px; color: var(--text-2); margin-bottom: 8px;
+    }
+    .jc-meta span { display: flex; align-items: center; gap: 4px; }
+    .jc-meta i { font-size: 12px; }
+
+    .jc-desc {
+      font-size: 13px; color: var(--text-2); line-height: 1.55;
+      margin-bottom: 10px;
+      display: -webkit-box; -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical; overflow: hidden;
+    }
+
+    /* Match score */
+    .match-row {
+      display: flex; align-items: center; gap: 10px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 8px 11px; margin-bottom: 10px;
+    }
+    .match-pct {
+      font-size: 20px; font-weight: 700;
+      font-family: var(--mono); min-width: 46px;
+    }
+    .match-inner { flex: 1; }
+    .match-track {
+      height: 4px; border-radius: 2px;
+      background: var(--surface-3); overflow: hidden; margin-bottom: 5px;
+    }
+    .match-fill { height: 100%; border-radius: 2px; transition: width .35s; }
+    .match-tags { display: flex; flex-wrap: wrap; gap: 4px; }
+    .match-tag {
+      font-size: 10px; font-weight: 500;
+      background: var(--green-bg); color: var(--green);
+      border: 1px solid var(--green-bdr);
+      padding: 1px 6px; border-radius: 10px;
+    }
+    .match-none { font-size: 11px; color: var(--text-3); }
+
+    /* Freshness */
+    .freshness { margin-top: 10px; }
+    .fresh-row {
+      display: flex; justify-content: space-between;
+      font-size: 11px; color: var(--text-3); margin-bottom: 3px;
+    }
+    .fresh-track {
+      height: 3px; border-radius: 2px;
+      background: var(--surface-3); overflow: hidden;
+    }
+    .fresh-fill { height: 100%; border-radius: 2px; }
+
+    .jc-foot {
+      display: flex; align-items: center;
+      justify-content: space-between; margin-top: 11px;
+    }
+
+    /* ── Profile tab ── */
+    .profile-grid { display: flex; flex-direction: column; gap: 10px; }
+    .pf-card {
+      background: var(--surface-1);
+      border: 1px solid var(--border);
+      border-radius: 12px; padding: 14px 16px;
+    }
+    .pf-title {
+      font-size: 13px; font-weight: 600; color: var(--text-1);
+      display: flex; align-items: center; gap: 7px; margin-bottom: 11px;
+    }
+    .pf-title i { color: var(--accent); font-size: 16px; }
+    .pf-stat-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+    .pf-stat {
+      background: var(--surface-2); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 10px 12px; text-align: center;
+    }
+    .pf-stat-val {
+      font-size: 22px; font-weight: 700;
+      font-family: var(--mono); color: var(--accent); margin-bottom: 2px;
+    }
+    .pf-stat-lbl { font-size: 10px; color: var(--text-3); text-transform: uppercase; letter-spacing: .4px; }
+    .pf-summary { font-size: 13px; color: var(--text-2); line-height: 1.6; }
+
+    /* ── Saved tab ── */
+    .saved-item {
+      background: var(--surface-1);
+      border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 11px 14px;
+      display: flex; align-items: center;
+      justify-content: space-between; gap: 12px;
+      margin-bottom: 8px;
+    }
+    .saved-info { flex: 1; min-width: 0; }
+    .saved-title {
+      font-size: 13px; font-weight: 500; color: var(--text-1);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      margin-bottom: 2px;
+    }
+    .saved-title a { color: inherit; text-decoration: none; }
+    .saved-title a:hover { color: var(--accent); }
+    .saved-sub { font-size: 11px; color: var(--text-3); }
+
+    /* ── Empty / loading states ── */
+    .empty {
+      text-align: center; padding: 48px 20px;
+      color: var(--text-3);
+    }
+    .empty i { font-size: 44px; display: block; margin-bottom: 14px; opacity: .4; }
+    .empty p { font-size: 14px; color: var(--text-2); max-width: 340px; margin: 0 auto; }
+    .empty .hint { font-size: 12px; color: var(--text-3); margin-top: 6px; }
+
+    .loading {
+      text-align: center; padding: 48px 20px;
+      font-size: 13px; color: var(--text-2);
+    }
+    .loading i {
+      font-size: 28px; color: var(--accent);
+      display: block; margin-bottom: 10px;
+      animation: spin 1s linear infinite;
+    }
+
+    .error-bar {
+      background: var(--red-bg);
+      border: 1px solid var(--red-bdr);
+      border-radius: var(--radius);
+      padding: 10px 14px; font-size: 13px;
+      color: var(--red); margin-bottom: 16px;
+    }
+    .error-bar strong { font-weight: 600; }
+
+    /* ── Responsive ── */
+    @media (max-width: 600px) {
+      .controls { grid-template-columns: 1fr; }
+      .stats { grid-template-columns: repeat(2,1fr); }
+      .mini-profile { grid-template-columns: 1fr; }
+      .pf-stat-row { grid-template-columns: 1fr 1fr; }
+    }
+  </style>
+</head>
+<body>
+<div class="shell">
+
+  <!-- Header -->
+  <div class="header">
+    <div>
+      <div class="header-title">
+        <i class="ti ti-radar"></i>
+        Job hunter dashboard
+      </div>
+      <div class="header-sub">Upload your resume once — AI extracts your profile and scores every job against your actual experience</div>
+    </div>
+    <div class="status-dot" title="Live"></div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('search')" id="tab-btn-search">
+      <i class="ti ti-search"></i>Search
+    </button>
+    <button class="tab" onclick="switchTab('profile')" id="tab-btn-profile">
+      <i class="ti ti-user"></i>My profile
+    </button>
+    <button class="tab" onclick="switchTab('saved')" id="tab-btn-saved">
+      <i class="ti ti-heart"></i>Saved
+      <span id="saved-count" style="font-size:11px;margin-left:3px;opacity:.6"></span>
+    </button>
+    <button class="tab" onclick="switchTab('alerts')" id="tab-btn-alerts">
+      <i class="ti ti-bell"></i>Alerts
+      <span id="alerts-status" style="font-size:10px;margin-left:4px;color:var(--green);display:none">●</span>
+    </button>
+  </div>
+
+  <!-- ══ SEARCH TAB ══ -->
+  <div id="tab-search">
+
+    <!-- Resume panel -->
+    <div class="resume-panel" id="resume-panel">
+      <div id="state-upload">
+        <div class="drop-zone" id="drop-zone">
+          <input type="file" id="resume-file" accept=".pdf,.doc,.docx,.txt" onchange="handleFile(this.files[0])">
+          <i class="ti ti-file-upload drop-icon"></i>
+          <div class="drop-text">Drop your resume here or click to browse</div>
+          <div class="drop-sub">PDF, Word, or plain text · AI reads it and auto-sets all filters</div>
+        </div>
+      </div>
+      <div id="state-parsing" style="display:none">
+        <div class="parsing-state">
+          <i class="ti ti-brain"></i>
+          <p>Reading your resume and building your profile…</p>
+        </div>
+      </div>
+      <div id="state-parsed" style="display:none">
+        <div class="resume-loaded-header">
+          <div>
+            <div class="resume-name" id="r-name"><i class="ti ti-circle-check"></i>Resume loaded</div>
+            <div class="resume-sub" id="r-sub"></div>
+          </div>
+          <button class="sm" onclick="resetResume()"><i class="ti ti-refresh"></i>Upload new</button>
+        </div>
+        <div class="mini-profile" id="mini-profile"></div>
+      </div>
+    </div>
+
+    <!-- Keyword controls -->
+    <div class="controls">
+      <div class="kw-area">
+        <div class="ctrl-label">
+          Keywords
+          <span class="auto-badge" id="auto-badge" style="display:none">
+            <i class="ti ti-sparkles" style="font-size:10px"></i> from resume
+          </span>
+        </div>
+        <div class="chips" id="chip-row" style="min-height:26px"></div>
+        <div class="kw-add">
+          <input type="text" id="kw-input" placeholder='Add keyword (e.g. "OKRs")' style="flex:1" />
+          <button onclick="addKeyword()"><i class="ti ti-plus"></i>Add</button>
+        </div>
+        <div class="kw-hint" id="kw-hint">Upload your resume to auto-populate keywords from your experience</div>
+      </div>
+
+      <div class="sources">
+        <div class="ctrl-label">Sources</div>
+        <label class="source-toggle"><input type="checkbox" id="src-adzuna" checked><span class="source-dot"></span>Adzuna</label>
+        <label class="source-toggle"><input type="checkbox" id="src-arbeitnow" checked><span class="source-dot"></span>Arbeitnow</label>
+        <label class="source-toggle"><input type="checkbox" id="src-muse" checked><span class="source-dot"></span>The Muse</label>
+        <label class="source-toggle"><input type="checkbox" id="src-remotive" checked><span class="source-dot"></span>Remotive</label>
+      </div>
+
+      <div class="actions">
+        <button class="primary" id="search-btn" onclick="runSearch()">
+          <i class="ti ti-search"></i>Search jobs
+        </button>
+        <select id="loc-select">
+          <option value="remote">Remote / any</option>
+          <option value="us">United States</option>
+          <option value="uk">United Kingdom</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats">
+      <div class="stat"><div class="stat-val a" id="s-total">—</div><div class="stat-lbl">Results</div></div>
+      <div class="stat"><div class="stat-val g" id="s-fresh">—</div><div class="stat-lbl">Posted &lt;24h</div></div>
+      <div class="stat"><div class="stat-val y" id="s-remote">—</div><div class="stat-lbl">Remote-friendly</div></div>
+      <div class="stat"><div class="stat-val" id="s-match">—</div><div class="stat-lbl" id="s-match-lbl">Avg match</div></div>
+    </div>
+
+    <div id="error-zone"></div>
+
+    <div class="sort-bar" id="sort-bar" style="display:none">
+      <span class="lbl">Sort by</span>
+      <select onchange="sortAndRender(this.value)" id="sort-select">
+        <option value="match">Best match first</option>
+        <option value="fresh">Freshness (newest first)</option>
+        <option value="remote">Remote first</option>
+      </select>
+      <span class="result-count" id="result-count"></span>
+    </div>
+
+    <div id="results-zone">
+      <div class="empty">
+        <i class="ti ti-file-upload"></i>
+        <p>Upload your resume, then hit Search — your profile auto-filters every result</p>
+        <p class="hint">Or just add keywords manually if you prefer</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ PROFILE TAB ══ -->
+  <div id="tab-profile" style="display:none">
+    <div id="profile-empty" class="empty">
+      <i class="ti ti-user-off"></i>
+      <p>Upload your resume in the Search tab to see your extracted profile here</p>
+    </div>
+    <div id="profile-content" style="display:none" class="profile-grid"></div>
+  </div>
+
+  <!-- ══ SAVED TAB ══ -->
+  <div id="tab-saved" style="display:none">
+    <div id="saved-zone"></div>
+  </div>
+
+  <!-- ══ ALERTS TAB ══ -->
+  <div id="tab-alerts" style="display:none">
+    <div style="display:flex;flex-direction:column;gap:12px">
+
+      <!-- Status banner -->
+      <div id="alert-status-banner" class="card" style="display:none;border-color:var(--green-bdr);background:rgba(63,185,80,0.04)">
+        <div style="display:flex;align-items:center;gap:10px">
+          <span style="color:var(--green);font-size:20px"><i class="ti ti-bell-ringing"></i></span>
+          <div>
+            <div style="font-size:14px;font-weight:600;color:var(--green)">Alerts active — scanning every hour</div>
+            <div style="font-size:12px;color:var(--text-2)" id="alert-status-sub">High-match jobs will be emailed to you automatically</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- How it works -->
+      <div class="card">
+        <div style="font-size:13px;font-weight:600;color:var(--text-1);margin-bottom:12px;display:flex;align-items:center;gap:7px">
+          <i class="ti ti-info-circle" style="color:var(--accent)"></i>How automated alerts work
+        </div>
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <div style="display:flex;gap:12px;align-items:flex-start">
+            <div style="background:var(--accent-bg);border:1px solid var(--accent-bdr);border-radius:50%;width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--accent);flex-shrink:0">1</div>
+            <div><div style="font-size:13px;font-weight:500;color:var(--text-1)">Upload your resume (Search tab)</div><div style="font-size:12px;color:var(--text-2)">Your profile and keywords get saved to the server for the scanner to use</div></div>
+          </div>
+          <div style="display:flex;gap:12px;align-items:flex-start">
+            <div style="background:var(--accent-bg);border:1px solid var(--accent-bdr);border-radius:50%;width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--accent);flex-shrink:0">2</div>
+            <div><div style="font-size:13px;font-weight:500;color:var(--text-1)">Configure your alert email below</div><div style="font-size:12px;color:var(--text-2)">Set your email and how sensitive the match threshold should be</div></div>
+          </div>
+          <div style="display:flex;gap:12px;align-items:flex-start">
+            <div style="background:var(--accent-bg);border:1px solid var(--accent-bdr);border-radius:50%;width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--accent);flex-shrink:0">3</div>
+            <div><div style="font-size:13px;font-weight:500;color:var(--text-1)">Add env vars in Vercel, redeploy</div><div style="font-size:12px;color:var(--text-2)">The scanner runs automatically every hour in the background — no browser needed</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Config panel -->
+      <div class="card">
+        <div style="font-size:13px;font-weight:600;color:var(--text-1);margin-bottom:14px;display:flex;align-items:center;gap:7px">
+          <i class="ti ti-settings" style="color:var(--accent)"></i>Alert configuration
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:14px">
+          <div>
+            <div class="ctrl-label" style="margin-bottom:6px">Match threshold</div>
+            <div style="display:flex;align-items:center;gap:12px">
+              <input type="range" id="threshold-slider" min="40" max="90" value="60" step="5"
+                style="flex:1;accent-color:var(--accent)"
+                oninput="document.getElementById('threshold-val').textContent = this.value + '%'">
+              <span id="threshold-val" style="font-size:15px;font-weight:700;font-family:var(--mono);color:var(--accent);min-width:40px">60%</span>
+            </div>
+            <div style="font-size:11px;color:var(--text-3);margin-top:4px">Only alert when a job scores at least this % against your resume. 60% is a good starting point — lower it if you're getting too few alerts.</div>
+          </div>
+
+          <div>
+            <div class="ctrl-label" style="margin-bottom:6px">Vercel environment variables to add</div>
+            <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius);padding:12px;font-family:var(--mono);font-size:12px;color:var(--text-2);display:flex;flex-direction:column;gap:6px">
+              <div><span style="color:var(--text-3)">ALERT_EMAIL</span>=<span style="color:var(--green)" id="ev-email">your@email.com</span></div>
+              <div><span style="color:var(--text-3)">RESEND_API_KEY</span>=<span style="color:var(--amber)">re_xxxxxxxxxxxx</span></div>
+              <div><span style="color:var(--text-3)">MATCH_THRESHOLD</span>=<span style="color:var(--accent)" id="ev-threshold">60</span></div>
+              <div><span style="color:var(--text-3)">APP_URL</span>=<span style="color:var(--text-2)">https://your-app.vercel.app</span></div>
+              <div><span style="color:var(--text-3)">CRON_SECRET</span>=<span style="color:var(--red)" id="ev-secret">generate-a-random-string</span></div>
+            </div>
+            <div style="font-size:11px;color:var(--text-3);margin-top:6px">Add these in Vercel → Settings → Environment Variables, then redeploy.</div>
+          </div>
+
+          <div>
+            <div class="ctrl-label" style="margin-bottom:6px">Get a free Resend API key</div>
+            <div style="font-size:13px;color:var(--text-2);line-height:1.6">
+              <a href="https://resend.com" target="_blank" rel="noopener" style="color:var(--accent)">resend.com</a> — free tier sends up to 3,000 emails/month.
+              Sign up, verify your domain (or use their sandbox for testing), copy your API key.
+              It takes about 5 minutes.
+            </div>
+          </div>
+
+          <div style="border-top:1px solid var(--border);padding-top:14px">
+            <div class="ctrl-label" style="margin-bottom:6px">Test the scanner manually</div>
+            <div style="font-size:12px;color:var(--text-2);margin-bottom:10px">
+              Once deployed, you can trigger a scan right now to verify it's working — it'll email you if any matches are found.
+            </div>
+            <button onclick="triggerManualScan()" id="manual-scan-btn">
+              <i class="ti ti-player-play"></i>Run scan now
+            </button>
+            <span id="scan-result" style="font-size:12px;color:var(--text-2);margin-left:10px"></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Env var checklist -->
+      <div class="card">
+        <div style="font-size:13px;font-weight:600;color:var(--text-1);margin-bottom:12px;display:flex;align-items:center;gap:7px">
+          <i class="ti ti-checklist" style="color:var(--accent)"></i>Setup checklist
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px;font-size:13px">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;color:var(--text-2)">
+            <input type="checkbox" id="chk-resume" style="accent-color:var(--accent)"> Resume uploaded and profile saved
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;color:var(--text-2)">
+            <input type="checkbox" id="chk-resend" style="accent-color:var(--accent)"> Resend account created and API key copied
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;color:var(--text-2)">
+            <input type="checkbox" id="chk-envvars" style="accent-color:var(--accent)"> Environment variables added in Vercel
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;color:var(--text-2)">
+            <input type="checkbox" id="chk-redeploy" style="accent-color:var(--accent)"> Redeployed after adding env vars
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;color:var(--text-2)">
+            <input type="checkbox" id="chk-test" style="accent-color:var(--accent)"> Test scan ran and email received
+          </label>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<script>
+  // ─────────────────────────────────────────────────────────
+  //  State
+  // ─────────────────────────────────────────────────────────
+  let manualKeywords = [];
+  let autoKeywords   = [];
+  let allJobs        = [];
+  let resumeProfile  = null;
+  let savedJobs      = [];
+
+  try { savedJobs = JSON.parse(localStorage.getItem('jh_saved') || '[]'); } catch(e) {}
+
+  // ─────────────────────────────────────────────────────────
+  //  Tabs
+  // ─────────────────────────────────────────────────────────
+  function switchTab(tab) {
+    ['search','profile','saved','alerts'].forEach(t => {
+      document.getElementById('tab-' + t).style.display = t === tab ? '' : 'none';
+      document.getElementById('tab-btn-' + t).classList.toggle('active', t === tab);
+    });
+    if (tab === 'saved')   renderSaved();
+    if (tab === 'profile') renderProfileTab();
+  }
+
+  // ─────────────────────────────────────────────────────────
+  //  Keywords
+  // ─────────────────────────────────────────────────────────
+  function renderChips() {
+    const row = document.getElementById('chip-row');
+    const autoSet = autoKeywords.map(k => ({ k, auto: true }));
+    const manSet  = manualKeywords.map(k => ({ k, auto: false }));
+    const all     = [...autoSet, ...manSet];
+    if (!all.length) {
+      row.innerHTML = '<span style="font-size:12px;color:var(--text-3)">No keywords yet</span>';
+      return;
+    }
+    row.innerHTML = all.map(({ k, auto }) =>
+      `<span class="chip ${auto ? 'auto' : 'manual'}">${k}
+        <button class="chip-remove" onclick="removeKw('${k}',${auto})" aria-label="Remove ${k}">×</button>
+      </span>`
+    ).join('');
+  }
+
+  function addKeyword() {
+    const inp = document.getElementById('kw-input');
+    const val = inp.value.trim();
+    if (val && !manualKeywords.includes(val) && !autoKeywords.includes(val)) {
+      manualKeywords.push(val);
+      renderChips();
+    }
+    inp.value = ''; inp.focus();
+  }
+  function removeKw(kw, auto) {
+    if (auto) autoKeywords     = autoKeywords.filter(k => k !== kw);
+    else      manualKeywords   = manualKeywords.filter(k => k !== kw);
+    renderChips();
+  }
+  document.getElementById('kw-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter') addKeyword();
+  });
+
+  // ─────────────────────────────────────────────────────────
+  //  Drag & drop
+  // ─────────────────────────────────────────────────────────
+  const dz = document.getElementById('drop-zone');
+  dz.addEventListener('dragover',  e => { e.preventDefault(); dz.classList.add('drag'); });
+  dz.addEventListener('dragleave', () => dz.classList.remove('drag'));
+  dz.addEventListener('drop', e => {
+    e.preventDefault(); dz.classList.remove('drag');
+    if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
+  });
+
+  // ─────────────────────────────────────────────────────────
+  //  Resume handling
+  // ─────────────────────────────────────────────────────────
+  function showResumeState(s) {
+    ['upload','parsing','parsed'].forEach(x =>
+      document.getElementById('state-' + x).style.display = x === s ? '' : 'none'
+    );
+  }
+
+  function resetResume() {
+    resumeProfile = null;
+    autoKeywords  = [];
+    renderChips();
+    showResumeState('upload');
+    document.getElementById('resume-panel').classList.remove('loaded');
+    document.getElementById('auto-badge').style.display = 'none';
+    document.getElementById('kw-hint').textContent = 'Upload your resume to auto-populate keywords from your experience';
+    document.getElementById('resume-file').value = '';
+  }
+
+  async function handleFile(file) {
+    if (!file) return;
+    showResumeState('parsing');
+    try {
+      const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+      const b64   = await toBase64(file, isPdf);
+      const profile = await callParseApi(b64, isPdf);
+      resumeProfile = profile;
+      applyProfile(profile);
+    } catch(err) {
+      showResumeState('upload');
+      showError('Resume parse failed: ' + err.message);
+    }
+  }
+
+  function toBase64(file, isPdf) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      if (isPdf) {
+        reader.onload = () => resolve(reader.result.split(',')[1]);
+        reader.readAsDataURL(file);
+      } else {
+        reader.onload = () => resolve(btoa(unescape(encodeURIComponent(reader.result))));
+        reader.readAsText(file);
+      }
+      reader.onerror = reject;
+    });
+  }
+
+  async function callParseApi(fileData, isPdf) {
+    const res = await fetch('/api/parse-resume', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fileData, isPdf })
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Server error ' + res.status);
+    }
+    return res.json();
+  }
+
+  function applyProfile(p) {
+    autoKeywords = [
+      ...(p.searchKeywords  || []),
+      ...(p.methodologies   || []).slice(0, 3)
+    ].slice(0, 8);
+    renderChips();
+
+    document.getElementById('auto-badge').style.display = '';
+    document.getElementById('kw-hint').textContent =
+      `${autoKeywords.length} keywords extracted — add more or remove any`;
+
+    document.getElementById('r-name').innerHTML =
+      `<i class="ti ti-circle-check"></i>${p.name || 'Resume loaded'}`;
+    document.getElementById('r-sub').textContent =
+      [p.currentTitle, p.yearsExperience ? p.yearsExperience + ' yrs exp' : null, p.seniority]
+        .filter(Boolean).join(' · ');
+
+    document.getElementById('mini-profile').innerHTML = `
+      <div class="mini-section">
+        <div class="mini-label">Titles held</div>
+        <div class="chips">${(p.jobTitles || []).slice(0,4).map(t =>
+          `<span class="chip title">${t}</span>`).join('')}</div>
+      </div>
+      <div class="mini-section">
+        <div class="mini-label">Core skills</div>
+        <div class="chips">${(p.coreSkills || []).slice(0,6).map(s =>
+          `<span class="chip skill">${s}</span>`).join('')}</div>
+      </div>`;
+
+    document.getElementById('resume-panel').classList.add('loaded');
+    showResumeState('parsed');
+    if (p.preferredRemote) document.getElementById('loc-select').value = 'remote';
+
+    // Save profile to server so the hourly cron can use it (fire-and-forget)
+    saveProfileToServer(p, autoKeywords);
+
+    // Auto-check the resume checkbox on the alerts tab
+    const chk = document.getElementById('chk-resume');
+    if (chk) chk.checked = true;
+  }
+
+  async function saveProfileToServer(profile, keywords) {
+    try {
+      await fetch('/api/save-profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ profile, keywords })
+      });
+      // Show active indicator on alerts tab
+      document.getElementById('alerts-status').style.display = '';
+      document.getElementById('alert-status-banner').style.display = '';
+    } catch(e) {
+      // Non-critical — dashboard still works without this
+      console.warn('Could not save profile to server:', e);
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────
+  //  Match scoring
+  // ─────────────────────────────────────────────────────────
+  function scoreJob(job) {
+    if (!resumeProfile) return null;
+    const p   = resumeProfile;
+    const txt = ((job.title || '') + ' ' + (job.description || '')).toLowerCase();
+    let score = 0, reasons = [];
+
+    // Titles — highest weight
+    (p.jobTitles || []).forEach(t => {
+      if (txt.includes(t.toLowerCase())) { score += 18; if (!reasons.includes(t)) reasons.push(t); }
+    });
+    // Methodologies
+    (p.methodologies || []).forEach(m => {
+      if (txt.includes(m.toLowerCase())) { score += 12; if (!reasons.includes(m)) reasons.push(m); }
+    });
+    // Core skills
+    (p.coreSkills || []).forEach(s => {
+      if (txt.includes(s.toLowerCase())) { score += 8; }
+    });
+    // Tools
+    (p.tools || []).forEach(t => {
+      if (txt.includes(t.toLowerCase())) { score += 6; }
+    });
+    // Auto keywords
+    (p.searchKeywords || []).forEach(k => {
+      if (txt.includes(k.toLowerCase())) { score += 7; }
+    });
+    // Seniority bonus
+    const levelMap = {
+      junior: ['junior','associate','entry'],
+      mid: ['mid-level','intermediate'],
+      senior: ['senior','sr.','sr '],
+      lead: ['lead','principal','staff'],
+      director: ['director','head of'],
+      vp: ['vp ','vice president'],
+      'c-level': ['chief','cto','cpo','ceo']
+    };
+    const lvl = p.seniority || 'senior';
+    (levelMap[lvl] || []).forEach(s => { if (txt.includes(s)) score += 10; });
+
+    return { score: Math.min(Math.round(score), 99), reasons: reasons.slice(0, 4) };
+  }
+
+  function matchColor(s) {
+    if (s >= 70) return '#3fb950';
+    if (s >= 45) return '#d29922';
+    return '#f85149';
+  }
+
+  // ─────────────────────────────────────────────────────────
+  //  Freshness helpers
+  // ─────────────────────────────────────────────────────────
+  function hoursAgo(d) {
+    if (!d) return 999;
+    const dt = new Date(d);
+    return isNaN(dt) ? 999 : Math.max(0, Math.round((Date.now() - dt) / 3_600_000));
+  }
+  function freshColor(h)  { return h<6?'#3fb950': h<24?'#3fb950': h<72?'#d29922':'#f85149'; }
+  function freshWidth(h)  { return h<1?100: h<6?90: h<24?70: h<48?45: h<72?25: h<168?10:3; }
+  function freshLabel(h)  { return h<1?'Just posted': h<24?h+'h ago': Math.round(h/24)+'d ago'; }
+
+  function detectRemote(job) {
+    const t = ((job.title||'')+(job.description||'')+(job.location?.display_name||job.location||'')).toLowerCase();
+    if (t.includes('remote')||t.includes('wfh')||job.remote===true) return 'remote';
+    if (t.includes('hybrid')) return 'hybrid';
+    return 'onsite';
+  }
+  function matchedKws(job) {
+    const t = ((job.title||'')+(job.description||'')).toLowerCase();
+    return [...autoKeywords, ...manualKeywords].filter(k => t.includes(k.toLowerCase()));
+  }
+
+  // ─────────────────────────────────────────────────────────
+  //  Job card renderer
+  // ─────────────────────────────────────────────────────────
+  function renderCard(job) {
+    const posted = job.posted_at || job.publication_date || job.created_at || job.updated_at;
+    const hrs    = hoursAgo(posted);
+    const rt     = detectRemote(job);
+    const mk     = matchedKws(job);
+    const match  = scoreJob(job);
+    const saved  = savedJobs.some(s => s.id === job.id);
+    const url    = job.url || job.refs?.landing_page || '#';
+
+    const loc    = job.location?.display_name || job.candidate_required_location || job.location || '';
+    const comp   = job.company?.display_name || job.company_name || job.company || 'Not listed';
+    const salary = job.salary_min
+      ? `$${Math.round(job.salary_min/1000)}k${job.salary_max ? '–$'+Math.round(job.salary_max/1000)+'k' : '+'}`
+      : '';
+    const desc   = (job.description || '').replace(/<[^>]+>/g,'').substring(0, 240);
+
+    return `
+      <div class="job-card ${match && match.score >= 65 ? 'high-match' : ''}" id="card-${job.id}">
+        <div class="jc-top">
+          <div style="min-width:0">
+            <a href="${url}" target="_blank" rel="noopener" class="jc-title">${job.title || 'Untitled role'}</a>
+            <div class="jc-company"><i class="ti ti-building"></i>${comp}</div>
+          </div>
+          <button class="sm ${saved ? 'saved' : ''}" onclick="toggleSave('${job.id}')" id="save-btn-${job.id}">
+            <i class="ti ti-heart${saved ? '-filled' : ''}"></i>${saved ? 'Saved' : 'Save'}
+          </button>
+        </div>
+        <div class="jc-badges">
+          <span class="badge source">${job._source}</span>
+          <span class="badge ${rt}">${rt}</span>
+          ${mk.slice(0,3).map(k => `<span class="badge kw">${k}</span>`).join('')}
+        </div>
+        ${loc || salary ? `<div class="jc-meta">
+          ${loc ? `<span><i class="ti ti-map-pin"></i>${loc}</span>` : ''}
+          ${salary ? `<span><i class="ti ti-currency-dollar"></i>${salary}</span>` : ''}
+        </div>` : ''}
+        ${desc ? `<div class="jc-desc">${desc}…</div>` : ''}
+        ${match !== null ? `
+          <div class="match-row">
+            <div class="match-pct" style="color:${matchColor(match.score)}">${match.score}%</div>
+            <div class="match-inner">
+              <div class="match-track">
+                <div class="match-fill" style="width:${match.score}%;background:${matchColor(match.score)}"></div>
+              </div>
+              <div class="match-tags">
+                ${match.reasons.length
+                  ? match.reasons.map(r => `<span class="match-tag">${r}</span>`).join('')
+                  : '<span class="match-none">No strong skill overlap found</span>'}
+              </div>
+            </div>
+          </div>` : ''}
+        <div class="freshness">
+          <div class="fresh-row">
+            <span>Freshness</span>
+            <span style="color:${freshColor(hrs)};font-weight:600">${freshLabel(hrs)}</span>
+          </div>
+          <div class="fresh-track">
+            <div class="fresh-fill" style="width:${freshWidth(hrs)}%;background:${freshColor(hrs)}"></div>
+          </div>
+        </div>
+        <div class="jc-foot">
+          <a href="${url}" target="_blank" rel="noopener" style="font-size:12px;color:var(--accent)">
+            <i class="ti ti-external-link" style="font-size:12px;margin-right:3px"></i>View posting
+          </a>
+        </div>
+      </div>`;
+  }
+
+  // ─────────────────────────────────────────────────────────
+  //  Sort
+  // ─────────────────────────────────────────────────────────
+  function sortAndRender(mode) {
+    const jobs = [...allJobs];
+    if (mode === 'match') {
+      jobs.sort((a,b) => ((scoreJob(b)||{score:0}).score) - ((scoreJob(a)||{score:0}).score));
+    } else if (mode === 'fresh') {
+      jobs.sort((a,b) => hoursAgo(a.posted_at||a.publication_date||a.created_at||a.updated_at)
+                       - hoursAgo(b.posted_at||b.publication_date||b.created_at||b.updated_at));
+    } else if (mode === 'remote') {
+      jobs.sort((a,b) => (detectRemote(a)==='remote'?0:1) - (detectRemote(b)==='remote'?0:1));
+    }
+    document.getElementById('result-count').textContent = jobs.length + ' results';
+    document.getElementById('results-zone').innerHTML = jobs.length
+      ? jobs.map(renderCard).join('')
+      : `<div class="empty"><i class="ti ti-search-off"></i><p>No results matched. Try different keywords or enable more sources.</p></div>`;
+  }
+
+  // ─────────────────────────────────────────────────────────
+  //  Save / unsave
+  // ─────────────────────────────────────────────────────────
+  function toggleSave(id) {
+    const job = allJobs.find(j => j.id === id);
+    if (!job) return;
+    const idx = savedJobs.findIndex(s => s.id === id);
+    if (idx >= 0) savedJobs.splice(idx, 1);
+    else savedJobs.push(job);
+    try { localStorage.setItem('jh_saved', JSON.stringify(savedJobs)); } catch(e) {}
+    updateSavedCount();
+    const btn = document.getElementById('save-btn-' + id);
+    if (btn) {
+      const is = savedJobs.some(s => s.id === id);
+      btn.innerHTML = `<i class="ti ti-heart${is ? '-filled' : ''}"></i>${is ? 'Saved' : 'Save'}`;
+      btn.className = `sm ${is ? 'saved' : ''}`;
+    }
+  }
+  function updateSavedCount() {
+    document.getElementById('saved-count').textContent = savedJobs.length ? `(${savedJobs.length})` : '';
+  }
+  function renderSaved() {
+    const zone = document.getElementById('saved-zone');
+    if (!savedJobs.length) {
+      zone.innerHTML = `<div class="empty"><i class="ti ti-heart"></i><p>No saved jobs yet — hit Save on any result to track it here</p></div>`;
+      return;
+    }
+    zone.innerHTML = savedJobs.map(job => {
+      const m = scoreJob(job);
+      return `<div class="saved-item">
+        <div class="saved-info">
+          <div class="saved-title"><a href="${job.url||job.refs?.landing_page||'#'}" target="_blank" rel="noopener">${job.title||'Untitled'}</a></div>
+          <div class="saved-sub">
+            ${job.company?.display_name||job.company_name||job.company||''}
+            <span class="badge source" style="margin-left:5px">${job._source}</span>
+            ${m ? `<span style="margin-left:6px;color:${matchColor(m.score)};font-weight:600;font-size:11px">${m.score}% match</span>` : ''}
+          </div>
+        </div>
+        <button class="danger-sm" onclick="removeSaved('${job.id}')"><i class="ti ti-trash"></i></button>
+      </div>`;
+    }).join('');
+  }
+  function removeSaved(id) {
+    savedJobs = savedJobs.filter(s => s.id !== id);
+    try { localStorage.setItem('jh_saved', JSON.stringify(savedJobs)); } catch(e) {}
+    updateSavedCount(); renderSaved();
+  }
+
+  // ─────────────────────────────────────────────────────────
+  //  Profile tab
+  // ─────────────────────────────────────────────────────────
+  function renderProfileTab() {
+    const empty   = document.getElementById('profile-empty');
+    const content = document.getElementById('profile-content');
+    if (!resumeProfile) { empty.style.display=''; content.style.display='none'; return; }
+    empty.style.display = 'none'; content.style.display = '';
+    const p = resumeProfile;
+    content.innerHTML = `
+      <div class="pf-card">
+        <div class="pf-title"><i class="ti ti-user-circle"></i>${p.name || 'Your profile'}</div>
+        <div class="pf-stat-row">
+          <div class="pf-stat"><div class="pf-stat-val">${p.yearsExperience || '—'}</div><div class="pf-stat-lbl">Years exp</div></div>
+          <div class="pf-stat"><div class="pf-stat-val" style="font-size:15px;text-transform:capitalize">${p.seniority || '—'}</div><div class="pf-stat-lbl">Seniority</div></div>
+          <div class="pf-stat"><div class="pf-stat-val" style="font-size:15px">${p.preferredRemote ? 'Remote' : 'Open'}</div><div class="pf-stat-lbl">Work pref</div></div>
+        </div>
+        <div class="pf-summary">${p.summary || ''}</div>
+      </div>
+      <div class="pf-card">
+        <div class="pf-title"><i class="ti ti-briefcase"></i>Job titles held</div>
+        <div class="chips">${(p.jobTitles||[]).map(t=>`<span class="chip title">${t}</span>`).join('')}</div>
+      </div>
+      <div class="pf-card">
+        <div class="pf-title"><i class="ti ti-tool" style="color:var(--green)"></i>Core skills</div>
+        <div class="chips">${(p.coreSkills||[]).map(s=>`<span class="chip skill">${s}</span>`).join('')}</div>
+      </div>
+      ${p.methodologies?.length ? `<div class="pf-card">
+        <div class="pf-title"><i class="ti ti-refresh" style="color:var(--amber)"></i>Methodologies</div>
+        <div class="chips">${p.methodologies.map(m=>`<span class="chip method">${m}</span>`).join('')}</div>
+      </div>` : ''}
+      ${p.tools?.length ? `<div class="pf-card">
+        <div class="pf-title"><i class="ti ti-settings" style="color:var(--text-2)"></i>Tools & platforms</div>
+        <div class="chips">${p.tools.map(t=>`<span class="chip tool">${t}</span>`).join('')}</div>
+      </div>` : ''}
+      ${p.industries?.length ? `<div class="pf-card">
+        <div class="pf-title"><i class="ti ti-building-community" style="color:var(--amber)"></i>Industries</div>
+        <div class="chips">${p.industries.map(i=>`<span class="chip industry">${i}</span>`).join('')}</div>
+      </div>` : ''}
+      <div class="pf-card">
+        <div class="pf-title"><i class="ti ti-search"></i>Auto-search keywords</div>
+        <div class="chips">${autoKeywords.map(k=>`<span class="chip auto">${k}</span>`).join('')}</div>
+        <div style="font-size:11px;color:var(--text-3);margin-top:8px">These drive job board queries. Edit them in the Search tab.</div>
+      </div>`;
+  }
+
+  // ─────────────────────────────────────────────────────────
+  //  Error display
+  // ─────────────────────────────────────────────────────────
+  function showError(msg) {
+    const z = document.getElementById('error-zone');
+    z.innerHTML = `<div class="error-bar"><strong>Heads up:</strong> ${msg}</div>`;
+    setTimeout(() => { z.innerHTML = ''; }, 10000);
+  }
+
+  // ─────────────────────────────────────────────────────────
+  //  Job board APIs
+  // ─────────────────────────────────────────────────────────
+  async function fetchAdzuna(kw, loc) {
+    const country = loc === 'uk' ? 'gb' : 'us';
+    const r = await fetch(
+      `https://api.adzuna.com/v1/api/jobs/${country}/search/1` +
+      `?app_id=5c90fad7&app_key=bfc851b76b38c88e73d7e52cb4eebbdc` +
+      `&what=${encodeURIComponent(kw)}&results_per_page=10&sort_by=date`
+    );
+    if (!r.ok) throw new Error('Adzuna ' + r.status);
+    const d = await r.json();
+    return (d.results||[]).map(j => ({
+      ...j, id: 'az_'+j.id, _source: 'Adzuna',
+      url: j.redirect_url, posted_at: j.created
+    }));
+  }
+
+  async function fetchArbeitnow(kw) {
+    const r = await fetch(`https://www.arbeitnow.com/api/job-board-api?search=${encodeURIComponent(kw)}`);
+    if (!r.ok) throw new Error('Arbeitnow ' + r.status);
+    const d = await r.json();
+    return (d.data||[]).slice(0,10).map(j => ({
+      ...j, id: 'ab_'+j.slug, _source: 'Arbeitnow',
+      url: j.url, location: j.location, company: j.company_name,
+      title: j.title, posted_at: new Date(j.created_at * 1000).toISOString()
+    }));
+  }
+
+  async function fetchMuse(kw) {
+    const r = await fetch(`https://www.themuse.com/api/public/jobs?descending=true&page=1&name=${encodeURIComponent(kw)}`);
+    if (!r.ok) throw new Error('The Muse ' + r.status);
+    const d = await r.json();
+    return (d.results||[]).slice(0,10).map(j => ({
+      ...j, id: 'mu_'+j.id, _source: 'The Muse',
+      url: j.refs?.landing_page, company: j.company?.name,
+      location: (j.locations||[]).map(l=>l.name).join(', '),
+      posted_at: j.publication_date
+    }));
+  }
+
+  async function fetchRemotive(kw) {
+    const r = await fetch(`https://remotive.com/api/remote-jobs?search=${encodeURIComponent(kw)}&limit=10`);
+    if (!r.ok) throw new Error('Remotive ' + r.status);
+    const d = await r.json();
+    return (d.jobs||[]).map(j => ({
+      ...j, id: 'rm_'+j.id, _source: 'Remotive', remote: true,
+      company: j.company_name,
+      location: j.candidate_required_location || 'Remote',
+      posted_at: j.publication_date
+    }));
+  }
+
+  // ─────────────────────────────────────────────────────────
+  //  Main search
+  // ─────────────────────────────────────────────────────────
+  async function runSearch() {
+    const allKw = [...autoKeywords, ...manualKeywords];
+    if (!allKw.length) { showError('Add at least one keyword or upload your resume first.'); return; }
+
+    const btn = document.getElementById('search-btn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="ti ti-loader" style="animation:spin 1s linear infinite"></i>Searching…';
+    document.getElementById('results-zone').innerHTML =
+      '<div class="loading"><i class="ti ti-loader"></i>Hitting the job boards…</div>';
+    document.getElementById('sort-bar').style.display = 'none';
+    document.getElementById('error-zone').innerHTML = '';
+
+    const useAdzuna  = document.getElementById('src-adzuna').checked;
+    const useArbeit  = document.getElementById('src-arbeitnow').checked;
+    const useMuse    = document.getElementById('src-muse').checked;
+    const useRemot   = document.getElementById('src-remotive').checked;
+    const loc        = document.getElementById('loc-select').value;
+    const primaryKw  = allKw[0];
+
+    const jobs = [], errors = [];
+    const fetchers = [];
+    if (useAdzuna) fetchers.push(fetchAdzuna(primaryKw, loc).then(r=>jobs.push(...r)).catch(e=>errors.push('Adzuna: '+e.message)));
+    if (useArbeit) fetchers.push(fetchArbeitnow(primaryKw).then(r=>jobs.push(...r)).catch(e=>errors.push('Arbeitnow: '+e.message)));
+    if (useMuse)   fetchers.push(fetchMuse(primaryKw).then(r=>jobs.push(...r)).catch(e=>errors.push('The Muse: '+e.message)));
+    if (useRemot)  fetchers.push(fetchRemotive(primaryKw).then(r=>jobs.push(...r)).catch(e=>errors.push('Remotive: '+e.message)));
+
+    await Promise.allSettled(fetchers);
+
+    // Dedupe
+    allJobs = jobs.filter((j,i,a) => a.findIndex(x => x.id === j.id) === i);
+
+    // Default sort
+    const mode = resumeProfile ? 'match' : 'fresh';
+    document.getElementById('sort-select').value = mode;
+
+    const freshCount  = allJobs.filter(j => hoursAgo(j.posted_at||j.publication_date||j.created_at||j.updated_at) < 24).length;
+    const remoteCount = allJobs.filter(j => detectRemote(j) === 'remote').length;
+    const scores      = resumeProfile ? allJobs.map(j => (scoreJob(j)||{score:0}).score) : [];
+    const avgMatch    = scores.length ? Math.round(scores.reduce((a,b)=>a+b,0)/scores.length) : null;
+
+    document.getElementById('s-total').textContent = allJobs.length;
+    document.getElementById('s-fresh').textContent = freshCount;
+    document.getElementById('s-remote').textContent = remoteCount;
+    document.getElementById('s-match').textContent = avgMatch !== null ? avgMatch + '%' : (new Set(allJobs.map(j=>j._source))).size;
+    document.getElementById('s-match-lbl').textContent = avgMatch !== null ? 'Avg match' : 'Sources';
+
+    if (errors.length) showError('Some sources had issues: ' + errors.join('; ') + ' — showing results from the rest.');
+
+    document.getElementById('sort-bar').style.display = allJobs.length ? 'flex' : 'none';
+    sortAndRender(mode);
+
+    btn.disabled = false;
+    btn.innerHTML = '<i class="ti ti-refresh"></i>Refresh';
+    updateSavedCount();
+  }
+
+  // ─────────────────────────────────────────────────────────
+  //  Alerts tab helpers
+  // ─────────────────────────────────────────────────────────
+  async function triggerManualScan() {
+    const btn = document.getElementById('manual-scan-btn');
+    const result = document.getElementById('scan-result');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="ti ti-loader" style="animation:spin 1s linear infinite"></i>Scanning…';
+    result.textContent = '';
+    try {
+      const r = await fetch('/api/scan-jobs', { method: 'GET' });
+      const d = await r.json();
+      if (d.skipped) {
+        result.textContent = '⚠️ ' + d.skipped + ' — check setup checklist below';
+        result.style.color = 'var(--amber)';
+      } else {
+        result.textContent = d.emailSent
+          ? `✓ Email sent! ${d.newMatches} match${d.newMatches !== 1 ? 'es' : ''} found`
+          : `✓ Scan complete — ${d.scanned} jobs checked, no new matches above threshold`;
+        result.style.color = d.emailSent ? 'var(--green)' : 'var(--text-2)';
+      }
+    } catch(e) {
+      result.textContent = '✗ Scan failed — make sure env vars are set and you have redeployed';
+      result.style.color = 'var(--red)';
+    }
+    btn.disabled = false;
+    btn.innerHTML = '<i class="ti ti-player-play"></i>Run scan now';
+  }
+
+  // Keep threshold display in sync with env var preview
+  document.getElementById('threshold-slider').addEventListener('input', function() {
+    document.getElementById('ev-threshold').textContent = this.value;
+  });
+
+  // ─────────────────────────────────────────────────────────
+  //  Init
+  // ─────────────────────────────────────────────────────────
+  renderChips();
+  updateSavedCount();
+</script>
+</body>
+</html>
