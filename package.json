@@ -1,0 +1,15 @@
+{
+  "name": "job-hunter-dashboard",
+  "version": "1.0.0",
+  "description": "AI-powered job search dashboard with resume parsing and match scoring",
+  "private": true,
+  "scripts": {
+    "dev": "vercel dev",
+    "deploy": "vercel --prod"
+  },
+  "dependencies": {
+    "node-fetch": "^3.3.2",
+    "resend": "^3.2.0",
+    "@vercel/kv": "^2.0.0"
+  }
+}
